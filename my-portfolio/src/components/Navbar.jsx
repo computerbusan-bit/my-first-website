@@ -11,6 +11,7 @@ function Navbar() {
 
   const navItems = [
     { label: 'Home', path: '/' },
+    { label: 'About Me', path: '/about' },
     { label: 'Projects', path: '/projects' },
   ];
 
