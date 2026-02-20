@@ -14,15 +14,29 @@ import {
   Tooltip,
   CircularProgress,
   Alert,
+  MenuItem,
+  Select,
+  InputLabel,
+  FormControl,
+  Collapse,
 } from '@mui/material';
 import EmailIcon from '@mui/icons-material/Email';
 import GitHubIcon from '@mui/icons-material/GitHub';
 import LinkedInIcon from '@mui/icons-material/LinkedIn';
 import InstagramIcon from '@mui/icons-material/Instagram';
 import SendIcon from '@mui/icons-material/Send';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import { supabase } from '../utils/supabase';
 
 const EMOJI_OPTIONS = ['👋', '🔥', '✨', '💡', '🎉', '💬', '🙌', '❤️'];
+
+const AGE_GROUP_OPTIONS = ['10대', '20대', '30대', '40대', '50대 이상', '비공개'];
+
+const KEYWORD_OPTIONS = [
+  '개발자', '디자이너', '기획자', '마케터', '학생', '창업가',
+  '아이디어맨', '호기심왕', '커피러버', '밤샘러', '열정가득',
+];
 
 const SNS_LINKS = [
   {
@@ -55,9 +69,21 @@ const SNS_LINKS = [
   },
 ];
 
+const INITIAL_FORM = {
+  name: '',
+  message: '',
+  emoji: '👋',
+  email: '',
+  sns_account: '',
+  affiliation: '',
+  age_group: '',
+  keyword: '',
+};
+
 const ContactSection = () => {
   const [entries, setEntries] = useState([]);
-  const [form, setForm] = useState({ name: '', message: '', emoji: '👋' });
+  const [form, setForm] = useState(INITIAL_FORM);
+  const [showOptional, setShowOptional] = useState(false);
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
@@ -67,7 +93,7 @@ const ContactSection = () => {
     setLoading(true);
     const { data, error: fetchError } = await supabase
       .from('guestbook')
-      .select('*')
+      .select('id, name, message, emoji, affiliation, age_group, keyword, sns_account, created_at')
       .order('created_at', { ascending: false })
       .limit(20);
 
@@ -94,19 +120,25 @@ const ContactSection = () => {
     setSubmitting(true);
     setError(null);
 
-    const { error: insertError } = await supabase.from('guestbook').insert([
-      {
-        name: form.name.trim() || '익명',
-        message: form.message.trim(),
-        emoji: form.emoji,
-      },
-    ]);
+    const payload = {
+      name: form.name.trim() || '익명',
+      message: form.message.trim(),
+      emoji: form.emoji,
+      ...(form.email.trim() && { email: form.email.trim() }),
+      ...(form.sns_account.trim() && { sns_account: form.sns_account.trim() }),
+      ...(form.affiliation.trim() && { affiliation: form.affiliation.trim() }),
+      ...(form.age_group && { age_group: form.age_group }),
+      ...(form.keyword && { keyword: form.keyword }),
+    };
+
+    const { error: insertError } = await supabase.from('guestbook').insert([payload]);
 
     if (insertError) {
       setError('메시지 전송에 실패했습니다. 다시 시도해주세요.');
     } else {
       setSuccess(true);
-      setForm({ name: '', message: '', emoji: '👋' });
+      setForm(INITIAL_FORM);
+      setShowOptional(false);
       await fetchEntries();
       setTimeout(() => setSuccess(false), 3000);
     }
@@ -217,6 +249,7 @@ const ContactSection = () => {
       <Card elevation={1} sx={{ mb: 4, borderRadius: 3 }}>
         <CardContent sx={{ p: 3 }}>
           <Box component="form" onSubmit={handleSubmit}>
+            {/* 필수 항목 */}
             <Grid container spacing={2} sx={{ mb: 2 }}>
               <Grid size={{ xs: 12, sm: 4 }}>
                 <TextField
@@ -268,6 +301,88 @@ const ContactSection = () => {
               ))}
             </Box>
 
+            {/* 선택 항목 토글 */}
+            <Button
+              size="small"
+              variant="text"
+              color="inherit"
+              onClick={() => setShowOptional((v) => !v)}
+              endIcon={showOptional ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+              sx={{ mb: 1, color: 'text.secondary', fontSize: '0.8rem' }}
+            >
+              추가 정보 입력 (선택)
+            </Button>
+
+            <Collapse in={showOptional}>
+              <Grid container spacing={2} sx={{ mb: 2, pt: 1 }}>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <TextField
+                    name="email"
+                    label="이메일 (비공개 저장)"
+                    value={form.email}
+                    onChange={handleChange}
+                    fullWidth
+                    size="small"
+                    type="email"
+                    placeholder="example@email.com"
+                    helperText="방명록에는 표시되지 않아요"
+                  />
+                </Grid>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <TextField
+                    name="sns_account"
+                    label="SNS 계정 (인스타, 트위터 등)"
+                    value={form.sns_account}
+                    onChange={handleChange}
+                    fullWidth
+                    size="small"
+                    placeholder="@username"
+                  />
+                </Grid>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <TextField
+                    name="affiliation"
+                    label="소속 / 직업"
+                    value={form.affiliation}
+                    onChange={handleChange}
+                    fullWidth
+                    size="small"
+                    placeholder="회사, 학교, 프리랜서 등"
+                  />
+                </Grid>
+                <Grid size={{ xs: 12, sm: 3 }}>
+                  <FormControl fullWidth size="small">
+                    <InputLabel>나이대</InputLabel>
+                    <Select
+                      name="age_group"
+                      value={form.age_group}
+                      label="나이대"
+                      onChange={handleChange}
+                    >
+                      {AGE_GROUP_OPTIONS.map((opt) => (
+                        <MenuItem key={opt} value={opt}>{opt}</MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </Grid>
+                <Grid size={{ xs: 12, sm: 3 }}>
+                  <FormControl fullWidth size="small">
+                    <InputLabel>한마디 키워드</InputLabel>
+                    <Select
+                      name="keyword"
+                      value={form.keyword}
+                      label="한마디 키워드"
+                      onChange={handleChange}
+                    >
+                      {KEYWORD_OPTIONS.map((opt) => (
+                        <MenuItem key={opt} value={opt}>{opt}</MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </Grid>
+              </Grid>
+            </Collapse>
+
             {success && (
               <Alert severity="success" sx={{ mb: 2 }}>
                 메시지가 전송되었습니다! 감사해요 🎉
@@ -310,8 +425,8 @@ const ContactSection = () => {
                     <Avatar sx={{ bgcolor: 'primary.light', width: 36, height: 36, fontSize: '1rem' }}>
                       {entry.emoji}
                     </Avatar>
-                    <Box>
-                      <Typography variant="body2" fontWeight={600}>
+                    <Box sx={{ flex: 1, minWidth: 0 }}>
+                      <Typography variant="body2" fontWeight={600} noWrap>
                         {entry.name}
                       </Typography>
                       <Typography variant="caption" color="text.secondary">
@@ -319,6 +434,25 @@ const ContactSection = () => {
                       </Typography>
                     </Box>
                   </Box>
+
+                  {/* 메타 정보 (소속, 나이대, 키워드, SNS) */}
+                  {(entry.affiliation || entry.age_group || entry.keyword || entry.sns_account) && (
+                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mb: 1.5 }}>
+                      {entry.affiliation && (
+                        <Chip label={entry.affiliation} size="small" variant="outlined" />
+                      )}
+                      {entry.age_group && (
+                        <Chip label={entry.age_group} size="small" variant="outlined" color="primary" />
+                      )}
+                      {entry.keyword && (
+                        <Chip label={`#${entry.keyword}`} size="small" color="secondary" />
+                      )}
+                      {entry.sns_account && (
+                        <Chip label={entry.sns_account} size="small" variant="outlined" />
+                      )}
+                    </Box>
+                  )}
+
                   <Divider sx={{ mb: 1.5 }} />
                   <Typography variant="body2" color="text.primary">
                     {entry.message}
